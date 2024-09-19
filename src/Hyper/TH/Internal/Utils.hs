@@ -73,11 +73,16 @@ makeTypeInfo name =
                 traverse (matchType name var) (D.constructorFields c)
                     <&> (D.constructorName c,D.constructorVariant c,)
         cons <- traverse makeCons (D.datatypeCons info)
+        let unkindToVar = \case
+                VarT v -> pure $ PlainTV v ()
+                SigT (VarT v) _k -> pure $ PlainTV v ()
+                _ -> fail "expected only variabled to be applied to data type"
+        params <- traverse unkindToVar . init . D.datatypeInstTypes $ info
         pure
             TypeInfo
                 { tiName = name
                 , tiInstance = dst
-                , tiParams = D.datatypeVars info & init
+                , tiParams = params
                 , tiHyperParam = var
                 , tiConstructors = cons
                 }
