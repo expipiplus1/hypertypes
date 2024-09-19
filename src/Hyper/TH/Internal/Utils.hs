@@ -84,20 +84,19 @@ makeTypeInfo name =
 
 parts :: D.DatatypeInfo -> Q (Type, Name)
 parts info =
-    case D.datatypeVars info of
+    case D.datatypeInstTypes info of
         [] -> fail "expected type constructor which requires arguments"
         xs ->
-            elimTV
-                (pure . (,) res)
-                ( \var c ->
-                    case c of
-                        ConT aHyper | aHyper == ''AHyperType -> pure (res, var)
-                        _ -> fail "expected last argument to be a AHyperType variable"
-                )
-                (last xs)
+            case last xs of
+                SigT (VarT var) (ConT aHyper)
+                    | aHyper == ''AHyperType -> pure (res, var)
+                _ -> fail "expected last argument to be a AHyperType variable"
             where
+                unkind = \case
+                    SigT a _k -> a
+                    a -> a
                 res =
-                    foldl AppT (ConT (D.datatypeName info)) (init xs <&> VarT . D.tvName)
+                    foldl AppT (ConT (D.datatypeName info)) (init xs <&> unkind)
 
 childrenTypes :: TypeInfo -> TypeContents
 childrenTypes info = evalState (childrenTypesH info) mempty
